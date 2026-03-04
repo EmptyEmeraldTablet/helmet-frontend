@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { hasViolation } from '@/utils/detection'
+import { resolveStorageUrl } from '@/utils/url'
 import type { ResultItem } from '@/types/result'
 
 const auth = useAuthStore()
@@ -32,9 +34,9 @@ const handleMessage = (payload: any) => {
       task_id: payload.data.task_id,
       device_id: payload.data.device_id,
       created_at: payload.data.created_at,
-      annotated_image_url: payload.data.annotated_image_url,
+      annotated_image_url: resolveStorageUrl(payload.data.annotated_image_url),
       detections: payload.data.detections || [],
-      has_violation: payload.data.has_violation,
+      has_violation: hasViolation(payload.data.detections || []),
     }
     results.value = [item, ...results.value].slice(0, 12)
   }
@@ -89,7 +91,7 @@ onMounted(() => {
           <div>
             <img
               v-if="item.annotated_image_url"
-              :src="item.annotated_image_url"
+              :src="resolveStorageUrl(item.annotated_image_url)"
               alt="annotated"
               style="width: 100%; border-radius: 10px; margin-bottom: 12px;"
             />

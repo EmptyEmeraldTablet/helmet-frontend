@@ -2,8 +2,11 @@
 import { onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchDeviceStats, fetchSummaryStats, fetchTrendStats } from '@/api/stats'
+import { fetchResults } from '@/api/results'
+import { hasViolation } from '@/utils/detection'
 import type { EChartsOption } from 'echarts'
 import type { SummaryStats, TrendResponse, DeviceStatsResponse } from '@/types/stats'
+import type { ResultItem } from '@/types/result'
 
 const summary = ref<SummaryStats>({
   total_today: 0,
@@ -18,6 +21,43 @@ const granularity = ref<'hour' | 'day' | 'week'>('day')
 
 const trendOption = ref<EChartsOption>({})
 const deviceOption = ref<EChartsOption>({})
+const resultsPageSize = 200
+
+const loadTodayResults = async (): Promise<ResultItem[]> => {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  const end = new Date()
+  const items: ResultItem[] = []
+  let page = 1
+  while (true) {
+    const response = await fetchResults({
+      page,
+      page_size: resultsPageSize,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+    })
+    items.push(...response.data.items)
+    if (response.data.items.length < resultsPageSize) break
+    page += 1
+  }
+  return items
+}
+
+const updateSummaryFromResults = async () => {
+  try {
+    const items = await loadTodayResults()
+    const total = items.length
+    const violations = items.filter((item) => hasViolation(item.detections)).length
+    summary.value = {
+      ...summary.value,
+      total_today: total,
+      violations_today: violations,
+      violation_rate: total ? violations / total : 0,
+    }
+  } catch (error) {
+    ElMessage.warning('Unable to compute violation stats from detections')
+  }
+}
 
 const buildTrendOption = () => {
   trendOption.value = {
@@ -69,6 +109,7 @@ const loadStats = async () => {
     deviceStats.value = deviceRes.data
     buildTrendOption()
     buildDeviceOption()
+    await updateSummaryFromResults()
   } catch (error) {
     ElMessage.error('Failed to load stats')
   }

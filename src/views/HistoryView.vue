@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchResults, fetchResultDetail } from '@/api/results'
 import { fetchDevices } from '@/api/devices'
+import { resolveStorageUrl } from '@/utils/url'
+import { hasViolation, helmetStatus, normalizeLabel, summarizeLabels } from '@/utils/detection'
 import type { ResultItem, ResultDetail } from '@/types/result'
 import type { Device } from '@/types/device'
 
@@ -14,6 +16,22 @@ const pageSize = ref(20)
 const loading = ref(false)
 const drawerOpen = ref(false)
 const detail = ref<ResultDetail | null>(null)
+const detailAnnotatedUrl = computed(() => resolveStorageUrl(detail.value?.annotated_image_url))
+const helmetStatusText = computed(() => helmetStatus(detail.value?.detections))
+const violationStatus = computed(() => {
+  if (!detail.value?.detections?.length) return '-'
+  return hasViolation(detail.value.detections) ? 'Yes' : 'No'
+})
+const detectionSummary = computed(() => summarizeLabels(detail.value?.detections))
+const rowViolation = (row: ResultItem) => hasViolation(row.detections)
+const displayResults = computed(() => {
+  if (filters.hasViolation === undefined) return results.value
+  return results.value.filter((item) => rowViolation(item) === filters.hasViolation)
+})
+const displayTotal = computed(() => {
+  if (filters.hasViolation === undefined) return total.value
+  return displayResults.value.length
+})
 
 const filters = reactive({
   range: null as [Date, Date] | null,
@@ -37,7 +55,7 @@ const loadResults = async () => {
       page: page.value,
       page_size: pageSize.value,
       device_id: filters.deviceId || undefined,
-      has_violation: filters.hasViolation,
+      has_violation: undefined,
       start_time: filters.range ? filters.range[0].toISOString() : undefined,
       end_time: filters.range ? filters.range[1].toISOString() : undefined,
     }
@@ -106,7 +124,7 @@ onMounted(async () => {
       </el-form>
 
       <el-table
-        :data="results"
+        :data="displayResults"
         v-loading="loading"
         style="width: 100%; margin-top: 16px;"
         @row-click="handleRowClick"
@@ -122,10 +140,10 @@ onMounted(async () => {
             {{ scope.row.detections.length }}
           </template>
         </el-table-column>
-        <el-table-column prop="has_violation" label="Violation" width="120">
+        <el-table-column label="Violation" width="120">
           <template #default="scope">
-            <el-tag :type="scope.row.has_violation ? 'danger' : 'success'">
-              {{ scope.row.has_violation ? 'Yes' : 'No' }}
+            <el-tag :type="rowViolation(scope.row) ? 'danger' : 'success'">
+              {{ rowViolation(scope.row) ? 'Yes' : 'No' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -136,7 +154,7 @@ onMounted(async () => {
           v-model:current-page="page"
           v-model:page-size="pageSize"
           layout="prev, pager, next"
-          :total="total"
+          :total="displayTotal"
           @current-change="loadResults"
         />
       </div>
@@ -149,23 +167,47 @@ onMounted(async () => {
         {{ detail.task_id }} · {{ new Date(detail.created_at).toLocaleString() }}
       </div>
       <img
-        v-if="detail.annotated_image_url"
-        :src="detail.annotated_image_url"
+        v-if="detailAnnotatedUrl"
+        :src="detailAnnotatedUrl"
         alt="annotated"
         style="width: 100%; border-radius: 12px; margin-bottom: 16px;"
       />
       <el-descriptions :column="1" border>
         <el-descriptions-item label="Device">{{ detail.device_id }}</el-descriptions-item>
+        <el-descriptions-item label="Helmet">
+          {{ helmetStatusText }}
+        </el-descriptions-item>
         <el-descriptions-item label="Violations">
-          {{ detail.has_violation ? 'Yes' : 'No' }}
+          {{ violationStatus }}
         </el-descriptions-item>
         <el-descriptions-item label="Detections">
           {{ detail.detections.length }}
+        </el-descriptions-item>
+        <el-descriptions-item label="Detection Labels">
+          {{ detectionSummary }}
         </el-descriptions-item>
         <el-descriptions-item label="Process Time">
           {{ detail.process_time_ms ?? '-' }} ms
         </el-descriptions-item>
       </el-descriptions>
+      <div v-if="detail.detections.length" style="margin-top: 16px;">
+        <div style="font-weight: 600; margin-bottom: 8px;">Detections</div>
+        <div
+          v-for="(detection, index) in detail.detections"
+          :key="`${detection.label}-${index}`"
+          style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-border);"
+        >
+          <div>
+            <div style="font-weight: 600;">{{ normalizeLabel(detection.label) }}</div>
+            <div style="font-size: 12px; color: var(--color-muted);">
+              bbox: {{ detection.bbox.join(', ') }}
+            </div>
+          </div>
+          <div style="font-size: 12px; color: var(--color-muted);">
+            conf: {{ (detection.confidence * 100).toFixed(1) }}%
+          </div>
+        </div>
+      </div>
     </div>
   </el-drawer>
 </template>

@@ -1,4 +1,4 @@
-export type DetectionLabel = "person" | "helmet" | "no_helmet";
+export type DetectionLabel = "person" | "helmet" | "head" | "no_helmet" | "none";
 
 export type Detection = {
   label: DetectionLabel;

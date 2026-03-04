@@ -2,6 +2,8 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchAlerts, markAlertRead, markAllRead } from '@/api/alerts'
+import { fetchResultDetail } from '@/api/results'
+import { countNoHelmet } from '@/utils/detection'
 import type { AlertResponse } from '@/types/alert'
 
 const alerts = ref<AlertResponse[]>([])
@@ -9,6 +11,28 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
+const violationCounts = ref<Record<string, number>>({})
+
+const loadViolationCounts = async (items: AlertResponse[]) => {
+  if (!items.length) {
+    violationCounts.value = {}
+    return
+  }
+  const entries = await Promise.all(
+    items.map(async (item) => {
+      try {
+        const response = await fetchResultDetail(item.task_id)
+        return [item.id, countNoHelmet(response.data.detections)]
+      } catch (error) {
+        return [item.id, item.violation_count]
+      }
+    }),
+  )
+  violationCounts.value = Object.fromEntries(entries)
+}
+
+const getViolationCount = (item: AlertResponse) =>
+  violationCounts.value[item.id] ?? item.violation_count
 
 const loadAlerts = async () => {
   loading.value = true
@@ -16,6 +40,7 @@ const loadAlerts = async () => {
     const response = await fetchAlerts(page.value, pageSize.value)
     alerts.value = response.data.items
     total.value = response.data.total
+    await loadViolationCounts(alerts.value)
   } catch (error) {
     ElMessage.error('Failed to load alerts')
   } finally {
@@ -61,7 +86,11 @@ onMounted(loadAlerts)
           </template>
         </el-table-column>
         <el-table-column prop="device_id" label="Device" />
-        <el-table-column prop="violation_count" label="Count" width="100" />
+        <el-table-column label="Count" width="100">
+          <template #default="scope">
+            {{ getViolationCount(scope.row) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="is_read" label="Status" width="120">
           <template #default="scope">
             <el-tag :type="scope.row.is_read ? 'info' : 'danger'">
