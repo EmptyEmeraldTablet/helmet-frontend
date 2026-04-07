@@ -2,10 +2,23 @@ import type { Detection } from '@/types/detection'
 
 export const normalizeLabel = (label: string) => {
   const key = label.toLowerCase()
-  if (key === 'no_helmet' || key === 'head') return 'head'
-  if (key === 'helmet') return 'helmet'
-  if (key === 'person' || key === 'none') return 'none'
-  return label
+  if (key === 'no_helmet' || key === 'head') return 'no_helmet'
+  if (key === 'helmet' || key === 'vest') return key
+  if (key === 'person') return 'person'
+  if (key === 'none') return 'none'
+  return key
+}
+
+const getSafetyCounts = (detections: Detection[] | null | undefined) => {
+  const items = detections ?? []
+  let helmetCount = 0
+  let vestCount = 0
+  for (const item of items) {
+    const label = normalizeLabel(item.label)
+    if (label === 'helmet') helmetCount += 1
+    if (label === 'vest') vestCount += 1
+  }
+  return { helmetCount, vestCount, total: items.length }
 }
 
 export const summarizeLabels = (detections: Detection[] | null | undefined): string => {
@@ -22,36 +35,21 @@ export const summarizeLabels = (detections: Detection[] | null | undefined): str
 }
 
 export const hasViolation = (detections: Detection[] | null | undefined): boolean => {
-  const items = detections ?? []
-  return items.some((item) => {
-    const label = normalizeLabel(item.label)
-    return label === 'head' || label === 'none'
-  })
+  const { helmetCount, vestCount, total } = getSafetyCounts(detections)
+  if (!total) return false
+  return helmetCount === 0 || vestCount === 0
 }
 
-export const countNoHelmet = (detections: Detection[] | null | undefined): number => {
-  const items = detections ?? []
-  return items.reduce((total, item) => {
-    const label = normalizeLabel(item.label)
-    if (label === 'head' || label === 'none') return total + 1
-    return total
-  }, 0)
+export const countMissingSafety = (detections: Detection[] | null | undefined): number => {
+  const { helmetCount, vestCount, total } = getSafetyCounts(detections)
+  if (!total) return 0
+  return (helmetCount === 0 ? 1 : 0) + (vestCount === 0 ? 1 : 0)
 }
 
-export const helmetStatus = (detections: Detection[] | null | undefined): string => {
-  const items = detections ?? []
-  if (!items.length) return '-'
-  const counts = new Map<string, number>()
-  for (const item of items) {
-    const label = normalizeLabel(item.label)
-    counts.set(label, (counts.get(label) || 0) + 1)
-  }
-  const helmetCount = counts.get('helmet') || 0
-  const noHelmetCount = (counts.get('head') || 0) + (counts.get('none') || 0)
-  if (helmetCount > 0 && noHelmetCount === 0) return `Yes (${helmetCount})`
-  if (helmetCount === 0 && noHelmetCount > 0) return `No (${noHelmetCount})`
-  if (helmetCount > 0 && noHelmetCount > 0) {
-    return `Mixed (helmet ${helmetCount} / no-helmet ${noHelmetCount})`
-  }
-  return 'Unknown'
+export const safetyStatus = (detections: Detection[] | null | undefined): string => {
+  const { helmetCount, vestCount, total } = getSafetyCounts(detections)
+  if (!total) return '-'
+  const helmetText = helmetCount > 0 ? `Yes (${helmetCount})` : 'No'
+  const vestText = vestCount > 0 ? `Yes (${vestCount})` : 'No'
+  return `Helmet: ${helmetText}, Vest: ${vestText}`
 }

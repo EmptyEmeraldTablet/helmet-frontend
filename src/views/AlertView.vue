@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchAlerts, markAlertRead, markAllRead } from '@/api/alerts'
 import { fetchResultDetail } from '@/api/results'
-import { countNoHelmet } from '@/utils/detection'
+import { countMissingSafety } from '@/utils/detection'
 import type { AlertResponse } from '@/types/alert'
 
 const alerts = ref<AlertResponse[]>([])
@@ -22,7 +22,7 @@ const loadViolationCounts = async (items: AlertResponse[]) => {
     items.map(async (item) => {
       try {
         const response = await fetchResultDetail(item.task_id)
-        return [item.id, countNoHelmet(response.data.detections)]
+        return [item.id, countMissingSafety(response.data.detections)]
       } catch (error) {
         return [item.id, item.violation_count]
       }

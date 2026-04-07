@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import { fetchResults, fetchResultDetail } from '@/api/results'
 import { fetchDevices } from '@/api/devices'
 import { resolveStorageUrl } from '@/utils/url'
-import { hasViolation, helmetStatus, normalizeLabel, summarizeLabels } from '@/utils/detection'
+import { hasViolation, normalizeLabel, safetyStatus, summarizeLabels } from '@/utils/detection'
 import type { ResultItem, ResultDetail } from '@/types/result'
 import type { Device } from '@/types/device'
 
@@ -17,7 +17,7 @@ const loading = ref(false)
 const drawerOpen = ref(false)
 const detail = ref<ResultDetail | null>(null)
 const detailAnnotatedUrl = computed(() => resolveStorageUrl(detail.value?.annotated_image_url))
-const helmetStatusText = computed(() => helmetStatus(detail.value?.detections))
+const safetyStatusText = computed(() => safetyStatus(detail.value?.detections))
 const violationStatus = computed(() => {
   if (!detail.value?.detections?.length) return '-'
   return hasViolation(detail.value.detections) ? 'Yes' : 'No'
@@ -174,8 +174,8 @@ onMounted(async () => {
       />
       <el-descriptions :column="1" border>
         <el-descriptions-item label="Device">{{ detail.device_id }}</el-descriptions-item>
-        <el-descriptions-item label="Helmet">
-          {{ helmetStatusText }}
+        <el-descriptions-item label="Safety Gear">
+          {{ safetyStatusText }}
         </el-descriptions-item>
         <el-descriptions-item label="Violations">
           {{ violationStatus }}

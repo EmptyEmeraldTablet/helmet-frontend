@@ -1,4 +1,10 @@
-export type DetectionLabel = "person" | "helmet" | "head" | "no_helmet" | "none";
+export type DetectionLabel =
+  | "helmet"
+  | "vest"
+  | "person"
+  | "head"
+  | "no_helmet"
+  | "none";
 
 export type Detection = {
   label: DetectionLabel;
