@@ -166,12 +166,13 @@ onMounted(async () => {
       <div style="margin-bottom: 12px; color: var(--color-muted);">
         {{ detail.task_id }} · {{ new Date(detail.created_at).toLocaleString() }}
       </div>
-      <img
-        v-if="detailAnnotatedUrl"
-        :src="detailAnnotatedUrl"
-        alt="annotated"
-        style="width: 100%; border-radius: 12px; margin-bottom: 16px;"
-      />
+      <div v-if="detailAnnotatedUrl" class="media-frame media-frame--detail" style="margin-bottom: 16px;">
+        <img
+          :src="detailAnnotatedUrl"
+          alt="annotated"
+          class="media-frame__media"
+        />
+      </div>
       <el-descriptions :column="1" border>
         <el-descriptions-item label="Device">{{ detail.device_id }}</el-descriptions-item>
         <el-descriptions-item label="Safety Gear">

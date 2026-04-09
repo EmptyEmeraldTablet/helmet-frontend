@@ -89,12 +89,13 @@ onMounted(() => {
             </div>
           </template>
           <div>
-            <img
-              v-if="item.annotated_image_url"
-              :src="resolveStorageUrl(item.annotated_image_url)"
-              alt="annotated"
-              style="width: 100%; border-radius: 10px; margin-bottom: 12px;"
-            />
+            <div v-if="item.annotated_image_url" class="media-frame media-frame--card" style="margin-bottom: 12px;">
+              <img
+                :src="resolveStorageUrl(item.annotated_image_url)"
+                alt="annotated"
+                class="media-frame__media"
+              />
+            </div>
             <div style="font-size: 12px; color: var(--color-muted); margin-bottom: 8px;">
               {{ new Date(item.created_at).toLocaleString() }}
             </div>
