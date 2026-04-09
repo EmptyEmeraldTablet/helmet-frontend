@@ -91,7 +91,7 @@ onMounted(() => {
           <div>
             <div v-if="item.annotated_image_url" class="media-frame media-frame--card" style="margin-bottom: 12px;">
               <img
-                :src="resolveStorageUrl(item.annotated_image_url)"
+                :src="resolveStorageUrl(item.annotated_image_url) || undefined"
                 alt="annotated"
                 class="media-frame__media"
               />
